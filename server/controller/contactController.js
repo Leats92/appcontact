@@ -3,12 +3,10 @@ const Contacts = require('../model/contactModel');
 const createError = (status, message) => ({ status, message });
 
 
-let memContacts = [];
-let memNextId = 1;
-const isDbReady = () => mongoose.connection && mongoose.connection.readyState === 1;
+const isDatabaseMarche = () => mongoose.connection && mongoose.connection.readyState === 1;
 
 
-const validateContactPayload = (body, requireAll = true) => {
+const validerContact = (body, requireAll = true) => {
   const { firstName, lastName, phone } = body;
   if (requireAll) {
     if (!firstName || !lastName || !phone) {
@@ -23,10 +21,10 @@ const validateContactPayload = (body, requireAll = true) => {
 
 const createContact = async (req, res) => {
   try {
-    const { firstName, lastName, phone } = validateContactPayload(req.body, true);
+    const { firstName, lastName, phone } = validerContact(req.body, true);
     const ownerId = req.user.id;
 
-    if (!isDbReady()) {
+    if (!isDatabaseMarche()) {
       const created = {
         id: memNextId++,
         ownerId,
@@ -56,7 +54,7 @@ const createContact = async (req, res) => {
 const listContacts = async (req, res) => {
   try {
     const ownerId = req.user.id;
-    if (!isDbReady()) {
+    if (!isDatabaseMarche()) {
       const result = memContacts.filter((c) => c.ownerId === ownerId);
       return res.status(200).json(result);
     } else {
@@ -72,7 +70,7 @@ const getContactById = async (req, res) => {
   try {
     const ownerId = req.user.id;
     const id = req.params.id;
-    if (!isDbReady()) {
+    if (!isDatabaseMarche()) {
       const intId = parseInt(id, 10);
       const contact = memContacts.find((c) => c.id === intId && c.ownerId === ownerId);
       if (!contact) return res.status(404).json({ message: 'Contact non trouvé' });
@@ -92,8 +90,8 @@ const updateContact = async (req, res) => {
   try {
     const ownerId = req.user.id;
     const id = req.params.id;
-    const { firstName, lastName, phone } = validateContactPayload(req.body, false);
-    if (!isDbReady()) {
+    const { firstName, lastName, phone } = validerContact(req.body, false);
+    if (!isDatabaseMarche()) {
       const intId = parseInt(id, 10);
       const index = memContacts.findIndex((c) => c.id === intId && c.ownerId === ownerId);
       if (index === -1) return res.status(404).json({ message: 'Contact non trouvé' });
@@ -129,7 +127,7 @@ const deleteContact = async (req, res) => {
   try {
     const ownerId = req.user.id;
     const id = req.params.id;
-    if (!isDbReady()) {
+    if (!isDatabaseMarche()) {
       const intId = parseInt(id, 10);
       const index = memContacts.findIndex((c) => c.id === intId && c.ownerId === ownerId);
       if (index === -1) return res.status(404).json({ message: 'Contact non trouvé' });
