@@ -3,6 +3,9 @@ const Contacts = require('../model/contactModel');
 const createError = (status, message) => ({ status, message });
 
 
+let memContacts = [];
+let memNextId = 1;
+
 
 const isDatabaseMarche = () => mongoose.connection && mongoose.connection.readyState === 1;
 

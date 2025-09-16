@@ -1,4 +1,11 @@
 require('dotenv').config();
+// Si rien n'est chargé (exécution depuis un autre cwd), tenter ../.env
+if (!process.env.MONGO_URI && !process.env.JWT_SECRET) {
+  try {
+    const path = require('path');
+    require('dotenv').config({ path: path.join(__dirname, '../.env') });
+  } catch {}
+}
 const express = require('express');
 const app = express();
 const cors = require('cors');
@@ -24,12 +31,19 @@ app.use(express.json());
 app.use(cors());
 
 const MONGO_URI = process.env.MONGO_URI;
+const MONGO_DB_NAME = process.env.MONGO_DB_NAME || 'fullstackjs';
 if (MONGO_URI) {
-  mongoose.connect(MONGO_URI)
-    .then(() => console.log('Connecté à MongoDB'))
+  // Force la base même si l'URI n'en contient pas
+  mongoose
+    .connect(MONGO_URI, { dbName: MONGO_DB_NAME })
+    .then(() => console.log(`Connecté à MongoDB (db: ${MONGO_DB_NAME})`))
     .catch(err => console.error('Erreur connexion MongoDB:', err.message));
 } else {
   console.log('MONGO_URI non défini: API fonctionnelle, contacts non persistés.');
+}
+
+if (!process.env.JWT_SECRET) {
+  console.warn('Attention: JWT_SECRET non défini. Utilisation d\'une valeur par défaut (dev).');
 }
 
 app.post('/auth/register', userController.register);

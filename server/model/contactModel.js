@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const contactSchema = mongoose.Schema(
   {
     ownerId: {
-      type: Number,
+      type: String,
       required: true,
       index: true,
     },
