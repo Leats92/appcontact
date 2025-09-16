@@ -1,138 +1,231 @@
-const mongoose = require("mongoose");
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const { setupSwagger } = require('./swagger');
+const path = require('path');
+const mongoose = require('mongoose');
+const userController = require('./controller/userController');
+const contactController = require('./controller/contactController');
 const port = 3000;
-const Users = require('./model/userModel.js');
-const mongoDBURL = 'mongodb+srv://username:password@cluster0.mongodb.net/userDB?retryWrites=true&w=majority';
 
+
+process.on('unhandledRejection', (reason) => {
+  console.error('UnhandledRejection:', reason?.message || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('UncaughtException:', err?.message || err);
+});
+
+
+setupSwagger(app);
 
 app.use(express.json());
 app.use(cors());
 
-app.post('/inscription', async (req, res) => {
-  try {
-    if (
-      !req.body.username || !req.body.password || !req.body.numero
-    )
-     {
-      return res.status(400).send({
-        message: 'envoyez tout les champs requis'
-      })
-     }
+const MONGO_URI = process.env.MONGO_URI;
+if (MONGO_URI) {
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log('Connecté à MongoDB'))
+    .catch(err => console.error('Erreur connexion MongoDB:', err.message));
+} else {
+  console.log('MONGO_URI non défini: API fonctionnelle, contacts non persistés.');
+}
 
-    const { username, password, numero } = req.body;
-    bcrypt.hash(password, 10).then(hash => {
-      Users.create({username, password: hash, numero}).then(user => res.json(user))
-    })
-  } catch(error) {
-    console.log(error.message);
-    res.status(500).send({ 
-      message: error.message 
-    })
+app.post('/auth/register', userController.register);
+app.post('/auth/login', userController.login);
+app.get('/auth/profile', userController.requireAuth, userController.getProfile);
 
-  }
+app.post('/connexion', userController.connexion);
 
+app.get('/utilisateur/:id', userController.requireAuth, userController.getUserById);
+app.delete('/utilisateur/:id', userController.requireAuth, userController.deleteUser);
+app.put('/utilisateur/:id', userController.requireAuth, userController.updateUser);
+
+/**
+ * @openapi
+ * /contacts:
+ *   get:
+ *     tags: [Contacts]
+ *     summary: Lister les contacts de l'utilisateur connecté
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des contacts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Contact'
+ *       401:
+ *         description: Non autorisé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erreur serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *   post:
+ *     tags: [Contacts]
+ *     summary: Créer un contact
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ContactCreate'
+ *     responses:
+ *       201:
+ *         description: Contact créé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Contact'
+ *       400:
+ *         description: Requête invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Non autorisé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erreur serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+app.post('/contacts', userController.requireAuth, contactController.createContact);
+app.get('/contacts', userController.requireAuth, contactController.listContacts);
+app.patch('/contacts/:id', userController.requireAuth, contactController.updateContact);
+app.delete('/contacts/:id', userController.requireAuth, contactController.deleteContact);
+
+
+const clientDist = path.join(__dirname, '../client/dist');
+app.use(express.static(clientDist));
+
+
+app.get(/^(?!\/auth|\/connexion|\/utilisateur|\/contacts|\/api-docs).*/, (req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
 
-app.post('/connexion', async (req, res) => {
-    const { username, password } = req.body;
-    try {
-      const user = await Users.findOne({username: username});
-      if(!user) {
-        return res.status(404).json('L\'utilisateur n\'existe pas');
-      }
-      
-      bcrypt.compare(password, user.password, (error, response) => {
-        if(error) {
-          return res.status(500).json('Erreur lors de la vérification du mot de passe');
-        }
-        if(response) {
-          return res.status(200).json('Connexion réussie');
-        } else {
-          return res.status(401).json('Mot de passe erroné');
-        }
-      });
-    } catch(error) {
-      console.log(error.message);
-      res.status(500).send({ message: error.message });
-    }
+/**
+ * @openapi
+ * /contacts/{id}:
+ *   patch:
+ *     tags: [Contacts]
+ *     summary: Mettre à jour partiellement un contact
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID MongoDB du contact
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ContactUpdate'
+ *     responses:
+ *       200:
+ *         description: Contact mis à jour
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Contact'
+ *       400:
+ *         description: Requête invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Non autorisé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Contact non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erreur serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *   delete:
+ *     tags: [Contacts]
+ *     summary: Supprimer un contact
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID MongoDB du contact
+ *     responses:
+ *       200:
+ *         description: Suppression réussie
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Non autorisé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Contact non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erreur serveur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+
+app.listen(port, () => {
+  console.log(`Application exemple à l'écoute sur le port ${port}!`);
+  console.log('Routes d\'authentification disponibles:');
+  console.log('- POST /auth/register - Inscription');
+  console.log('- POST /auth/login - Connexion');
+  console.log('- GET /auth/profile - Profil utilisateur (protégé)');
+  console.log('Routes contacts disponibles (protégées):');
+  console.log('- POST /contacts - Créer un contact');
+  console.log('- GET /contacts - Lister les contacts');
+  console.log('- PATCH /contacts/:id - Mettre à jour un contact (partiel)');
+  console.log('- DELETE /contacts/:id - Supprimer un contact');
 });
-
-app.get('/utilisateur/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const user = await Users.findById(id);
-    
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    return res.status(200).json(user);  
-  } catch(error) {
-    console.log(error.message);
-    res.status(500).send({ 
-      message: error.message 
-    })
-  }
-});
-
-app.delete('/utilisateur/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await Users.findByIdAndDelete(id);
-    
-    if (!result) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    return res.status(200).json({ message: 'Utilisateur supprimé avec succès' });
-  } catch(error) {
-    console.log(error.message);
-    res.status(500).send({ 
-      message: error.message 
-    })
-  }
-});
-
-app.put('/utilisateur/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { username, numero } = req.body;
-    
-    // Vérifier si les champs requis sont présents
-    if (!username || !numero) {
-      return res.status(400).json({ message: 'Les champs username et numero sont requis' });
-    }
-    
-    const updatedUser = await Users.findByIdAndUpdate(
-      id, 
-      { username, numero },
-      { new: true }
-    );
-    
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    return res.status(200).json(updatedUser);
-  } catch(error) {
-    console.log(error.message);
-    res.status(500).send({ 
-      message: error.message 
-    })
-  }
-})
-
-
-mongoose.connect(mongoDBURL).then(() => {
-  console.log("App connected to database")
-  app.listen(port, () => {
-    console.log(`Application exemple à l'écoute sur le port ${port}!`);
-    });
-}).catch((error) => {
-    console.log(error);
-})
