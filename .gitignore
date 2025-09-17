@@ -23,6 +23,4 @@ build/
 *.swp
 *.swo
 
-# Package lock files
-package-lock.json
-yarn.lock
+# (Keep lockfiles committed for reproducible builds)
