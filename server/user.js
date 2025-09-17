@@ -73,7 +73,8 @@ app.patch('/contacts/:id', userController.requireAuth, contactController.updateC
 app.delete('/contacts/:id', userController.requireAuth, contactController.deleteContact);
 
 
-const clientDist = path.join(__dirname, '../client/dist');
+// Servez le build du front depuis server/public (généré au build Render)
+const clientDist = path.join(__dirname, 'public');
 app.use(express.static(clientDist));
 
 
