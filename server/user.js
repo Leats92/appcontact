@@ -81,7 +81,7 @@ const staticRoot = fs.existsSync(publicDir) ? publicDir : distDir;
 if (!fs.existsSync(staticRoot)) {
   console.warn('Aucun build front trouvé. Placez le build dans server/public ou client/dist.');
 }
-app.use(express.static(staticRoot));
+app.use(express.static(staticRoot, { index: false }));
 
 
 app.get(/^(?!\/auth|\/connexion|\/utilisateur|\/contacts|\/api-docs).*/, (req, res) => {
