@@ -73,13 +73,23 @@ app.patch('/contacts/:id', userController.requireAuth, contactController.updateC
 app.delete('/contacts/:id', userController.requireAuth, contactController.deleteContact);
 
 
-// Servez le build du front depuis server/public (généré au build Render)
-const clientDist = path.join(__dirname, 'public');
-app.use(express.static(clientDist));
+// Servez le build du front: tente server/public d'abord (Render), sinon client/dist (dev)
+const fs = require('fs');
+const publicDir = path.join(__dirname, 'public');
+const distDir = path.join(__dirname, '../client/dist');
+const staticRoot = fs.existsSync(publicDir) ? publicDir : distDir;
+if (!fs.existsSync(staticRoot)) {
+  console.warn('Aucun build front trouvé. Placez le build dans server/public ou client/dist.');
+}
+app.use(express.static(staticRoot));
 
 
 app.get(/^(?!\/auth|\/connexion|\/utilisateur|\/contacts|\/api-docs).*/, (req, res) => {
-  res.sendFile(path.join(clientDist, 'index.html'));
+  const indexPath = path.join(staticRoot, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  res.status(200).send('Frontend non construit: veuillez builder le client.');
 });
 
 /**
