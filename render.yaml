@@ -4,8 +4,14 @@ services:
     env: node
     plan: free
     buildCommand: |
+      # Install + build client
       npm ci --prefix client --include=dev
-      npm run build --prefix client -- --outDir ../server/public
+      npm run build --prefix client
+      # Copy build to server/public so Express can serve it at runtime
+      rm -rf server/public
+      mkdir -p server/public
+      cp -r client/dist/* server/public/
+      # Install server deps
       npm ci --prefix server
     startCommand: node server/user.js
     envVars:
