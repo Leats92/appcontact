@@ -14,6 +14,9 @@ const userSchema = mongoose.Schema(
         phone: {
             type: String,
             required: true,
+            minlength: 10,
+            trim: true,
+            match: [/^\d+$/, 'Téléphone invalide: uniquement des chiffres']
         },
         firstName: {
             type: String,

@@ -18,6 +18,9 @@ const contactSchema = mongoose.Schema(
     phone: {
       type: String,
       required: true,
+      minlength: 10,
+      trim: true,
+      match: [/^\d+$/, "Téléphone invalide: uniquement des chiffres"],
     },
     createdAt: {
       type: Date,

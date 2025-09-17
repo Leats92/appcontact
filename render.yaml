@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: fullstackjs-app
+    env: node
+    plan: free
+    buildCommand: |
+      npm ci --prefix client
+      npm run build --prefix client
+      npm ci --prefix server
+    startCommand: node server/user.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: fullstackjs
+      - key: JWT_SECRET
+        sync: false

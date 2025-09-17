@@ -1,5 +1,4 @@
 require('dotenv').config();
-// Si rien n'est chargé (exécution depuis un autre cwd), tenter ../.env
 if (!process.env.MONGO_URI && !process.env.JWT_SECRET) {
   try {
     const path = require('path');
@@ -14,7 +13,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const userController = require('./controller/userController');
 const contactController = require('./controller/contactController');
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 
 process.on('unhandledRejection', (reason) => {
@@ -33,7 +32,6 @@ app.use(cors());
 const MONGO_URI = process.env.MONGO_URI;
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || 'fullstackjs';
 if (MONGO_URI) {
-  // Force la base même si l'URI n'en contient pas
   mongoose
     .connect(MONGO_URI, { dbName: MONGO_DB_NAME })
     .then(() => console.log(`Connecté à MongoDB (db: ${MONGO_DB_NAME})`))
@@ -50,78 +48,24 @@ app.post('/auth/register', userController.register);
 app.post('/auth/login', userController.login);
 app.get('/auth/profile', userController.requireAuth, userController.getProfile);
 
-app.post('/connexion', userController.connexion);
+app.get('/health/db', (req, res) => {
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const stateIdx = mongoose.connection.readyState;
+  const state = states[stateIdx] || 'unknown';
+  const conn = mongoose.connection;
+  const info = {
+    connected: state === 'connected',
+    state,
+    dbName: conn?.name || process.env.MONGO_DB_NAME || null,
+    host: (conn && conn.host) || null,
+  };
+  res.status(200).json(info);
+});
 
 app.get('/utilisateur/:id', userController.requireAuth, userController.getUserById);
 app.delete('/utilisateur/:id', userController.requireAuth, userController.deleteUser);
 app.put('/utilisateur/:id', userController.requireAuth, userController.updateUser);
 
-/**
- * @openapi
- * /contacts:
- *   get:
- *     tags: [Contacts]
- *     summary: Lister les contacts de l'utilisateur connecté
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Liste des contacts
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Contact'
- *       401:
- *         description: Non autorisé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *   post:
- *     tags: [Contacts]
- *     summary: Créer un contact
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/ContactCreate'
- *     responses:
- *       201:
- *         description: Contact créé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Contact'
- *       400:
- *         description: Requête invalide
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       401:
- *         description: Non autorisé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Erreur serveur
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
 
 app.post('/contacts', userController.requireAuth, contactController.createContact);
 app.get('/contacts', userController.requireAuth, contactController.listContacts);
@@ -232,15 +176,19 @@ app.get(/^(?!\/auth|\/connexion|\/utilisateur|\/contacts|\/api-docs).*/, (req, r
  */
 
 
-app.listen(port, () => {
-  console.log(`Application exemple à l'écoute sur le port ${port}!`);
-  console.log('Routes d\'authentification disponibles:');
-  console.log('- POST /auth/register - Inscription');
-  console.log('- POST /auth/login - Connexion');
-  console.log('- GET /auth/profile - Profil utilisateur (protégé)');
-  console.log('Routes contacts disponibles (protégées):');
-  console.log('- POST /contacts - Créer un contact');
-  console.log('- GET /contacts - Lister les contacts');
-  console.log('- PATCH /contacts/:id - Mettre à jour un contact (partiel)');
-  console.log('- DELETE /contacts/:id - Supprimer un contact');
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Application exemple à l'écoute sur le port ${port}!`);
+    console.log('Routes d\'authentification disponibles:');
+    console.log('- POST /auth/register - Inscription');
+    console.log('- POST /auth/login - Connexion');
+    console.log('- GET /auth/profile - Profil utilisateur (protégé)');
+    console.log('Routes contacts disponibles (protégées):');
+    console.log('- POST /contacts - Créer un contact');
+    console.log('- GET /contacts - Lister les contacts');
+    console.log('- PATCH /contacts/:id - Mettre à jour un contact (partiel)');
+    console.log('- DELETE /contacts/:id - Supprimer un contact');
+  });
+}
+
+module.exports = app;

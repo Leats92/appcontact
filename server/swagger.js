@@ -49,7 +49,9 @@ const swaggerOptions = {
             },
             phone: {
               type: 'string',
-              description: 'Numéro de téléphone de l\'utilisateur au format E.164'
+              description: 'Numéro de téléphone, uniquement chiffres',
+              minLength: 10,
+              pattern: '^\\d+$'
             },
             firstName: {
               type: 'string',
@@ -97,7 +99,9 @@ const swaggerOptions = {
             },
             phone: {
               type: 'string',
-              description: "Numéro de téléphone du contact au format E.164"
+              description: "Numéro de téléphone, uniquement chiffres",
+              minLength: 10,
+              pattern: '^\\d+$'
             },
             createdAt: {
               type: 'string',
