@@ -78,6 +78,9 @@ const fs = require('fs');
 const publicDir = path.join(__dirname, 'public');
 const distDir = path.join(__dirname, '../client/dist');
 const staticRoot = fs.existsSync(publicDir) ? publicDir : distDir;
+console.log('Static hosting root:', staticRoot);
+console.log('Exists publicDir?', fs.existsSync(publicDir));
+console.log('Exists distDir?', fs.existsSync(distDir));
 if (!fs.existsSync(staticRoot)) {
   console.warn('Aucun build front trouvé. Placez le build dans server/public ou client/dist.');
 }

@@ -7,10 +7,14 @@ services:
       # Install + build client
       npm ci --prefix client --include=dev
       npm run build --prefix client
+      echo "== Listing client/dist =="
+      ls -la client/dist || true
       # Copy build to server/public so Express can serve it at runtime
       rm -rf server/public
       mkdir -p server/public
       cp -r client/dist/* server/public/
+      echo "== Listing server/public after copy =="
+      ls -la server/public || true
       # Install server deps
       npm ci --prefix server
     startCommand: node server/user.js
